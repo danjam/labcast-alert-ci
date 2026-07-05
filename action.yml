@@ -1,0 +1,45 @@
+name: Labcast CI Alert
+description: Notify labcast when a CI workflow fails
+
+inputs:
+  labcast-url:
+    description: Labcast webhook bridge URL
+    required: true
+  labcast-api-key:
+    description: Labcast API key
+    required: true
+  ts-oauth-client-id:
+    description: Tailscale OAuth client ID
+    required: true
+  ts-oauth-secret:
+    description: Tailscale OAuth secret
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Connect to Tailscale
+      uses: tailscale/github-action@v4
+      with:
+        oauth-client-id: ${{ inputs.ts-oauth-client-id }}
+        oauth-secret: ${{ inputs.ts-oauth-secret }}
+        tags: tag:github-actions
+
+    - name: Notify labcast
+      shell: bash
+      env:
+        LABCAST_URL: ${{ inputs.labcast-url }}
+        LABCAST_API_KEY: ${{ inputs.labcast-api-key }}
+      run: |
+        PAYLOAD=$(jq -n \
+          --arg repo "${{ github.repository }}" \
+          --arg workflow "${{ github.workflow }}" \
+          --arg branch "${{ github.ref_name }}" \
+          --arg commit "${{ github.sha }}" \
+          --arg run_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+          '{repo: $repo, workflow: $workflow, branch: $branch, commit: $commit, run_url: $run_url}')
+        curl -sf -X POST \
+          -H "Content-Type: application/json" \
+          -H "X-Api-Key: $LABCAST_API_KEY" \
+          -d "$PAYLOAD" \
+          "$LABCAST_URL/publish/alerts/ci"
