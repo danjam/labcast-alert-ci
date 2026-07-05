@@ -48,6 +48,6 @@ runs:
           -H "X-Api-Key: $LABCAST_API_KEY" \
           -d "$PAYLOAD" \
           "$LABCAST_URL/publish/alerts/ci")
-        if [ "$HTTP_CODE" -ge 400 ]; then
+        if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 400 ]; then
           echo "::warning::Labcast notification failed with HTTP $HTTP_CODE"
         fi
